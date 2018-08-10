@@ -6,6 +6,7 @@ dns-server = 8.8.8.8
 
 [Rule]
 DOMAIN-SUFFOX,vv.video.qq.com,PROXY
+DOMAIN-SUFFOX,103.44.59.54,PROXY
 FINAL,DIRECT
 
 [Host]
