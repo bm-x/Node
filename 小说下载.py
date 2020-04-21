@@ -8,23 +8,23 @@ from pyquery import PyQuery as pq
 
 import re
 
-startIndex = 12345712
-endIndex = 12347837
-# endIndex = 12345715
+startIndex = 17036832
+# endIndex = 153157174
+endIndex = 17036835
 
-#  url ='https://www.boquge.com/book/21281/12345712.html'
+#  url ='http://www.paoshu8.com/44_44420/17036832.html'
 
-fd =open('/Users/bm/Desktop/仙逆.txt', 'w', encoding ='utf-8')
+fd =open('C:/Users/bm/Desktop/阴阳鬼术.txt', 'w', encoding ='utf-8')
 
 for index in range(startIndex,endIndex+1) :
-    html = pq(requests.get('https://www.boquge.com/book/21281/%s.html' % index).text)
-    html.remove('.gad2')
-    title = html('#h1 h1').text()
+    html = pq(requests.get('http://www.paoshu8.com/44_44420/%s.html' % index).text)
+    title = html('.bookname h1').text()
     print('下载 -> %s' % title)
-    content = html('#txtContent').text()
+    content = html('#content')
+    content.remove(':last-child')
     fd.write(title)
     fd.write('\n')
-    fd.write(content)
+    fd.write(content.text())
     fd.write('\n\n')
     time.sleep(0.1)
 
