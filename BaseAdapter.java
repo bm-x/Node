@@ -1,153 +1,113 @@
-package com.okfunc.testvlayout;
+  /*
+    * 保存文件，文件名为当前日期
+    */
+   public boolean saveBitmap(Bitmap bitmap, String bitName) {
+       String fileName;
+       File file;
+       String brand = Build.BRAND;
 
-import android.content.Context;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
+       if (brand.equals("xiaomi")) { // 小米手机brand.equals("xiaomi")
+           fileName = Environment.getExternalStorageDirectory().getPath() + "/DCIM/Camera/" + bitName;
+       } else if (brand.equalsIgnoreCase("Huawei")) {
+           fileName = Environment.getExternalStorageDirectory().getPath() + "/DCIM/Camera/" + bitName;
+       } else { // Meizu 、Oppo
+           fileName = Environment.getExternalStorageDirectory().getPath() + "/DCIM/" + bitName;
+       }
+//        fileName = Environment.getExternalStorageDirectory().getPath() + "/DCIM/Camera/" + bitName;
+       if (Build.VERSION.SDK_INT >= 29) {
+//            boolean isTrue = saveSignImage(bitName, bitmap);
+           saveSignImage(bitName,bitmap);
+           return true;
+//            file= getPrivateAlbumStorageDir(NewPeoActivity.this, bitName,brand);
+//            return isTrue;
+       } else {
+           Log.v("saveBitmap brand", "" + brand);
+           file =new File(fileName);
+       }
+       if (file.exists()) {
+           file.delete();
+       }
+       FileOutputStream out;
+       try {
+           out = new FileOutputStream(file);
+// 格式为 JPEG，照相机拍出的图片为JPEG格式的，PNG格式的不能显示在相册中
+           if (bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)) {
+               out.flush();
+               out.close();
+// 插入图库
+               if(Build.VERSION.SDK_INT >= 29){
+                   ContentValues values = new ContentValues();
+                   values.put(MediaStore.Images.Media.DATA,  file.getAbsolutePath());
+                   values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                   Uri uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+               }else{
+                   MediaStore.Images.Media.insertImage(this.getContentResolver(), file.getAbsolutePath(), bitName, null);
 
-import androidx.annotation.LayoutRes;
-import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.RecyclerView;
+               }
 
-import com.alibaba.android.vlayout.DelegateAdapter;
+           }
+       } catch (FileNotFoundException e) {
+           Log.e("FileNotFoundException", "FileNotFoundException:" + e.getMessage().toString());
+           e.printStackTrace();
+           return false;
+       } catch (IOException e) {
+           Log.e("IOException", "IOException:" + e.getMessage().toString());
+           e.printStackTrace();
+           return false;
+       } catch (Exception e) {
+           Log.e("IOException", "IOException:" + e.getMessage().toString());
+           e.printStackTrace();
+           return false;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+// 发送广播，通知刷新图库的显示
 
-public abstract class BaseAdapter<T> extends DelegateAdapter.Adapter<BaseAdapter<T>.BaseAdapterHolder> {
+       }
+//        if(Build.VERSION.SDK_INT >= 29){
+//            copyPrivateToDownload(this,file.getAbsolutePath(),bitName);
+//        }
+       this.sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.parse("file://" + fileName)));
 
-    public interface OnItemClickListener<T> {
-        void onItemClick(View clickView, T item, int position, int itemViewType, BaseAdapter<T> adapter, BaseAdapter<T>.BaseAdapterHolder holder);
-    }
+       return true;
 
-    public interface Filter<T> {
-        boolean filter(Object obj, T item);
-    }
+   }
 
-    protected Context mContext;
-    protected LayoutInflater mLayoutInflater;
-    private OnItemClickListener<T> mItemClickListener;
-    private final List<T> mData = new ArrayList<>();
-    private final List<T> mBackUp = new ArrayList<>();
 
-    public BaseAdapter(@NonNull Context context) {
-        mContext = context;
-        mLayoutInflater = LayoutInflater.from(mContext);
-    }
 
-    public BaseAdapter<T> setOnItemClickListener(OnItemClickListener<T> listener) {
-        mItemClickListener = listener;
-        return this;
-    }
-
-    public BaseAdapter<T> setData(List<T> list) {
-        mData.clear();
-        if (list != null) mData.addAll(list);
-        notifyDataSetChanged();
-        return this;
-    }
-
-    public BaseAdapter<T> addData(List<T> list) {
-        if (list != null) mData.addAll(list);
-        notifyDataSetChanged();
-        return this;
-    }
-
-    public BaseAdapter<T> sort(@NonNull Comparator<T> comparator) {
-        if (!mBackUp.isEmpty()) {
-            mData.clear();
-            mData.addAll(mBackUp);
-        }
-        mBackUp.clear();
-        mBackUp.addAll(mData);
-        Collections.sort(mData, comparator);
-        notifyDataSetChanged();
-        return this;
-    }
-
-    public BaseAdapter<T> fillter(Object target, @NonNull Filter<T> filter) {
-        if (!mBackUp.isEmpty()) {
-            mData.clear();
-            mData.addAll(mBackUp);
-        }
-        mBackUp.clear();
-        mBackUp.addAll(mData);
-        mData.clear();
-
-        for (T t : mBackUp) {
-            if (filter.filter(target, t)) {
-                mData.add(t);
+   //将文件保存到公共的媒体文件夹
+//这里的filepath不是绝对路径，而是某个媒体文件夹下的子路径，和沙盒子文件夹类似
+//这里的filename单纯的指文件名，不包含路径
+    public void saveSignImage(/*String filePath,*/String fileName, Bitmap bitmap) {
+        try {
+            //设置保存参数到ContentValues中
+            ContentValues contentValues = new ContentValues();
+            //设置文件名
+            contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
+            //兼容Android Q和以下版本
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                //android Q中不再使用DATA字段，而用RELATIVE_PATH代替
+                //RELATIVE_PATH是相对路径不是绝对路径
+                //DCIM是系统文件夹，关于系统文件夹可以到系统自带的文件管理器中查看，不可以写没存在的名字
+                contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, "DCIM/");
+                //contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, "Music/signImage");
+            } else {
+                contentValues.put(MediaStore.Images.Media.DATA, Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).getPath());
             }
-        }
-        notifyDataSetChanged();
-        return this;
-    }
-
-
-    public void restore() {
-        if (!mBackUp.isEmpty()) {
-            mData.clear();
-            mData.addAll(mBackUp);
-        }
-        mBackUp.clear();
-        notifyDataSetChanged();
-    }
-
-    public T getItem(int position) {
-        return mData.get(position);
-    }
-
-    @Override
-    public int getItemCount() {
-        return mData.size();
-    }
-
-    @Override
-    protected void onBindViewHolderWithOffset(BaseAdapterHolder holder, int position, int offsetTotal, List<Object> payloads) {
-        holder.bindPosition(position, offsetTotal);
-        super.onBindViewHolderWithOffset(holder, position, offsetTotal, payloads);
-    }
-
-    protected BaseAdapter<T>.BaseAdapterHolder createGenericViewHolder(ViewGroup parent, @LayoutRes int layoutId) {
-        return new BaseAdapterHolder(mLayoutInflater.inflate(layoutId, parent, false));
-    }
-
-    protected View[] getItemClickViews(BaseAdapterHolder holder, int viewType) {
-        return new View[]{holder.itemView};
-    }
-
-    public class BaseAdapterHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
-
-        private int position;
-        private int offsetTotal;
-
-        public BaseAdapterHolder(@NonNull View itemView) {
-            super(itemView);
-            setTargetViewClickListener();
-        }
-
-        private void bindPosition(int position, int offsetTotal) {
-            this.position = position;
-            this.offsetTotal = offsetTotal;
-        }
-
-        protected void setTargetViewClickListener() {
-            View[] views = getItemClickViews(this, getItemViewType());
-            if (views != null) {
-                for (View view : views) {
-                    view.setOnClickListener(this);
+            //设置文件类型
+            contentValues.put(MediaStore.Images.Media.MIME_TYPE, "image/JPEG");
+            //执行insert操作，向系统文件夹中添加文件
+            //EXTERNAL_CONTENT_URI代表外部存储器，该值不变
+            Uri uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues);
+            if (uri != null) {
+                //若生成了uri，则表示该文件添加成功
+                //使用流将内容写入该uri中即可
+                OutputStream outputStream = getContentResolver().openOutputStream(uri);
+                if (outputStream != null) {
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream);
+                    outputStream.flush();
+                    outputStream.close();
                 }
             }
-        }
-
-        @Override
-        public void onClick(View v) {
-            OnItemClickListener<T> listener = mItemClickListener;
-            if (listener != null) {
-                listener.onItemClick(v, getItem(position), position, getItemViewType(), BaseAdapter.this, this);
-            }
+        } catch (Exception e) {
         }
     }
-}
+
